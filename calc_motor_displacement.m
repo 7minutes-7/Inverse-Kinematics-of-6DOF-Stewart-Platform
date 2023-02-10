@@ -18,9 +18,9 @@ function [theta] = calc_motor_displacement(x,alpha,beta,gamma)
 
 %% FIXED VARIABLES
 delta = [pi/6, pi/2, 5*pi/6, 7*pi/6, 3*pi/2, 11*pi/6]';
-L = 88;
+L = 90;
 radius_P = 38;
-radius_B = 45;
+radius_B = 45.75;
 theta_max = 15;
 motor_height = 50.8;
 motor_thickness = 6.4;
@@ -30,6 +30,10 @@ base_thickness = 8;
 
 %% calculate kinematics
 R_PtoB = calc_RMatrix(alpha,beta,gamma);
+
+% subtract offsets
+x = x - [0,0, joint_height + motor_height + motor_thickness + base_thickness]' - R_PtoB*[0,0,platform_thickness + joint_height]';
+
 
 ME = MException('StewartPlatform:notPossible', ...
                  'This configuration is impossible');
