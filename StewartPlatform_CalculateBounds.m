@@ -4,8 +4,10 @@ angles = [0,0,0];
 
 buf_z = zeros(3,1000);
 buf_xy = zeros(3,1000000);
+buf_xy_edges = zeros(3,1000);
 z_size=0;
 xy_size=0;
+xy_size_1 = 0;
 dx = 0.5;
 
 %% Calculating z bound
@@ -37,13 +39,12 @@ for i = 1:z_size
                 x(2) = x(2) + dx; 
             catch ME
                 if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))
-                    %{
                     if(k~=1)
                         x(2) = x(2) - dx;
-                        xy_size = xy_size + 1;
-                        buf_xy(:,xy_size) = x;
+                        xy_size_1 = xy_size_1 + 1
+                        buf_xy_edges(:,xy_size_1) = x;
                     end
-                    %}
+                    
                     break
                 end 
             end
@@ -62,6 +63,7 @@ end
 %% Plot results (symmetric on all 4 quadrants)
 f1 = figure();
 figure(f1);
+
 scatter3(buf_xy(1,1:xy_size), buf_xy(2,1:xy_size), buf_xy(3,1:xy_size),1,'b')
 %hold on;
 %scatter3(buf_xy(1,:), -buf_xy(2,:), buf_xy(3,:),1,'b')
@@ -74,7 +76,6 @@ axis([0 50 0 50 195 215])
 xlabel('x')
 ylabel('y')
 zlabel('z')
-
 
 %% Calculating tilting angles on each z bound
 % Considering only one angle tilt (yaw/pitch/roll)
@@ -106,12 +107,37 @@ xlabel('z coordinate')
 ylabel('Angle')
 
 % 2. roll
-buf_roll = zeros(1,1000);
+buf_roll = zeros(1,10000);
+
+% Make new z buffer for evaluating roll angles 
+% (smaller delta(0.1) near maximum peak 203~204)
+new_buf_z;
+new_buf_z_size = z_size;
 for i = 1:z_size
-    x = buf_z(:,i);
-    for j = 1:1000
+    x = buf_z(3,i);
+    if(x>202.5)
+        new_buf_z = buf_z(3,1:i);
+        n = (buf_z(3,i+2)-new_buf_z(end))/0.1 - 2;
+        new_buf_z_size = new_buf_z_size + n;
+        new_buf_z = cat(2, new_buf_z, new_buf_z(end)+0.1:0.1:buf_z(3,i+2)-0.1);
+        new_buf_z = cat(2, new_buf_z, buf_z(3,i+2:end));
+        break
+    end
+end
+temp = zeros(2, size(new_buf_z,2));
+new_buf_z = [temp ; new_buf_z];
+
+for i = 1:new_buf_z_size
+    x = new_buf_z(:,i); 
+    for j = 1:10000
         try
            calc_motor_displacement(x,angles(1),angles(2),angles(3));
+           % Check in smaller delta near the maximum peak
+           if (x(3) > 203 && x(3)<204)
+               ddelta = 0.01;
+           else
+               ddelta = 0.1;
+           end
            angles = angles + [0,ddelta,0]
         catch ME
             if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))
@@ -126,11 +152,36 @@ end
 % plot results
 figure(f2);
 hold on;
-scatter(buf_z(3,1:z_size), buf_roll(1:z_size),".")
+scatter(new_buf_z(3,1:new_buf_z_size), buf_roll(1:new_buf_z_size),".")
 legend('yaw(z)','roll(x)')
 
 %% x,y range on different angles?
-x = [0,0,203.4]';
-angles = [0,0,0];
+angles = [0, 14.04, 0];
+buf_xy_2 = zeros(3,1000000);
+%% Calculating x,y bound based on the z bound
+for i = 1:z_size
+    x = buf_z(:,i);
+    for j = 1:1000
+        for k = 1:1000
+            try
+                calc_motor_displacement(x,angles(1),angles(2),angles(3));
+                
+                xy_size = xy_size + 1;
+                buf_xy_2(:,xy_size) = x;
+                
+                x(2) = x(2) + dx; 
+            catch ME
+                if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))   
+                    break
+                end 
+            end
+        end 
 
+        if(k==1) 
+            break
+        end 
 
+        x(1) = x(1) + dx
+        x(2) = 0;
+    end 
+end 
