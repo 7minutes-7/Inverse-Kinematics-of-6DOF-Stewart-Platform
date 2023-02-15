@@ -2,6 +2,9 @@
 % x: translation
 % alpha, beta, gamma : Euler angles of the platform relative to the base
 
+%% Format
+format long;
+
 %% INPUT VARIABLES
 x = zeros(3,1);
 angles = zeros(3,1);
@@ -24,8 +27,9 @@ while(true)
         disp('Motor displacement:')
         disp(theta)
     catch ME
-        if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))
+        if(strcmp(ME.identifier, 'StewartPlatform:notPossible') || strcmp(ME.identifier, 'StewartPlatform:linkCollision'))
             disp(ME.message)
+
         end 
     end
 end
