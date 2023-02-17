@@ -35,7 +35,7 @@ for i = 1:1000
         buf_z(:,i) = x;
         x(3) = x(3) + dx;
     catch ME
-        if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))
+        if(strcmp(ME.identifier, 'StewartPlatform:notPossible')|| strcmp(ME.identifier, 'StewartPlatform:linkCollision'))
             sprintf("Max z is %f", x(3))
             break
         end 
@@ -89,8 +89,8 @@ scatter3(buf_xy(1,1:xy_size), buf_xy(2,1:xy_size), buf_xy(3,1:xy_size),1,'b')
 %scatter3(-buf_xy(1,:), buf_xy(2,:), buf_xy(3,:),1,'b')
 %hold on;
 %scatter3(-buf_xy(1,:), -buf_xy(2,:), buf_xy(3,:),1,'b')
-title('Range of translation at roatation [0,0,0]')
-%axis([0 50 0 50 195 215])
+title('Range of translation at rotation [0,0,0]')
+axis([0 70 0 70 195 230])
 xlabel('x')
 ylabel('y')
 zlabel('z')
@@ -99,7 +99,7 @@ zlabel('z')
 
 %% Calculating tilting angles on each z bound
 % Considering only one angle tilt (yaw/pitch/roll)
-% 1. yaw
+%% 1. yaw
 ddelta = 0.1;
 buf_yaw = zeros(1,10000);
 for i = 1:z_size
@@ -125,16 +125,17 @@ scatter(buf_z(3,1:z_size), buf_yaw(1:z_size),".")
 title('Maximum angle at each z height')
 xlabel('z coordinate')
 ylabel('Angle')
+hold on;
 
-% 2. roll
-buf_roll = zeros(1,10000);
+%% 2. pitch
+buf_pitch = zeros(1,10000);
 
 % Make new z buffer for evaluating roll angles 
 % (smaller delta(0.1) near maximum peak 203~204)
 
 new_buf_z = [];
 new_buf_z_size = z_size;
-critical_z = 206.5;
+critical_z = 200;
 for i = 1:z_size
     x = buf_z(3,i);
     if(x>critical_z)
@@ -163,7 +164,7 @@ for i = 1:new_buf_z_size
            angles = angles + [0,ddelta,0]
         catch ME
             if(strcmp(ME.identifier, 'StewartPlatform:notPossible') || strcmp(ME.identifier, 'StewartPlatform:linkCollision'))
-                buf_roll(i) = angles(2);
+                buf_pitch(i) = angles(2);
                 break
             end
         end
@@ -171,30 +172,55 @@ for i = 1:new_buf_z_size
     angles = [0,0,0];
 end 
 
-%{
+% plot results
+
+scatter(new_buf_z(3,1:new_buf_z_size), buf_pitch(1:new_buf_z_size),".")
+
+%% 3. roll
+buf_roll = zeros(1,10000);
+
+% Make new z buffer for evaluating roll angles 
+% (smaller delta(0.1) near maximum peak 203~204)
+
+new_buf_z = [];
+new_buf_z_size = z_size;
+critical_z = 203;
 for i = 1:z_size
-    x = buf_z(:,i); 
+    x = buf_z(3,i);
+    if(x>critical_z)
+        new_buf_z = buf_z(3,1:i);
+        n = (buf_z(3,i+3)-new_buf_z(end))/0.1 - 2;
+        new_buf_z_size = new_buf_z_size + n - 1;
+        new_buf_z = cat(2, new_buf_z, new_buf_z(end)+0.1:0.1:buf_z(3,i+3)-0.1);
+        new_buf_z = cat(2, new_buf_z, buf_z(3,i+3:end));
+        break
+    end
+end
+temp = zeros(2, size(new_buf_z,2));
+new_buf_z = [temp ; new_buf_z];
+
+for i = 1:new_buf_z_size
+    x = new_buf_z(:,i); 
     for j = 1:10000
         try
            calc_motor_displacement(x,angles(1),angles(2),angles(3));
-           angles = angles + [0,ddelta,0]
+           % Check in smaller delta near the maximum peak
+           if (x(3) > critical_z && x(3)<critical_z+1)
+               ddelta = 0.01;
+           else
+               ddelta = 0.1;
+           end
+           angles = angles + [0,0,ddelta]
         catch ME
-            if(strcmp(ME.identifier, 'StewartPlatform:notPossible'))
-                buf_roll(i) = angles(2);
+            if(strcmp(ME.identifier, 'StewartPlatform:notPossible') || strcmp(ME.identifier, 'StewartPlatform:linkCollision'))
+                buf_roll(i) = angcmdles(3);
                 break
             end
         end
     end 
     angles = [0,0,0];
 end 
-%}
 
 % plot results
-figure(f2);
-hold on;
-
-%scatter(buf_z(3,1:z_size), buf_roll(1:z_size),".")
-
 scatter(new_buf_z(3,1:new_buf_z_size), buf_roll(1:new_buf_z_size),".")
-legend('yaw(z)','roll(x)')
-%saveas(f2,"Rotation_plot.png")
+legend('yaw(z)','pitch(x)','roll(x)')
