@@ -2,8 +2,6 @@
 % x: translation
 % alpha, beta, gamma : Euler angles of the platform relative to the base
 
-%% Format
-format long;
 
 %% INPUT VARIABLES
 x = zeros(3,1);

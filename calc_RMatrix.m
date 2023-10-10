@@ -6,9 +6,9 @@ gamma = gamma*pi/180;
 
 % calculate roatation matrix 
 
-% ZYX (rotated in the order of XYZ)
-R = [cos(alpha)*cos(beta), cos(alpha)*sin(beta)*sin(gamma)-cos(gamma)*sin(alpha), sin(alpha)*sin(gamma)+cos(alpha)*cos(gamma)*sin(beta);
-    cos(beta)*sin(alpha), cos(alpha)*cos(gamma)+sin(alpha)*sin(beta)*sin(gamma), cos(gamma)*sin(alpha)*sin(beta)-cos(alpha)*sin(gamma);
-    -sin(beta), cos(beta)*sin(gamma), cos(beta)*cos(gamma)];
+% ZYX (rotated in the order of XYZ) Euler angles
+R = [cos(beta) * cos(gamma), sin(alpha)* sin(beta)* cos(gamma) - cos(alpha) * sin(gamma), cos(alpha)* sin(beta)* cos(gamma) + sin(alpha) * sin(gamma);
+     cos(beta)* sin(gamma), sin(alpha)* sin(beta)* sin(gamma) + cos(alpha) * cos(gamma), cos(alpha)* sin(beta)* sin(gamma) - sin(alpha) * cos(gamma);
+	-sin(beta), sin(alpha)* cos(beta), cos(alpha)* cos(beta)];
 
 end
