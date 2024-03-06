@@ -1,0 +1,11 @@
+figure;
+BreakPlot(rand(1,21),[1:10,40:50],10,40,'Line');
+figure;
+BreakPlot(rand(1,21),[1:10,40:50],10,40,'Patch');
+figure;
+BreakPlot(rand(1,21),[1:10,40:50],10,40,'RPatch');
+figure;
+x=rand(1,21);y=[1:10,40:50];
+subplot(2,1,1);plot(x(y>=40),y(y>=40),'.');
+set(gca,'XTickLabel',[]);
+subplot(2,1,2);plot(x(y<=20),y(y<=20),'.');%
