@@ -1,67 +1,53 @@
 clear
-lbr =  loadrobot('kukaIiwa14');
+close all
+
+%% Building robot
+
+% Load KUKA robot
+robot =  Func_kuka_robot_build_dhparam();
+
+% Load stewart platform 
+assem = Build_stewart_simple();
+
+% Add stewart to KUKA end effector
+addSubtree(robot, robot.Bodies{end}.Name, assem);
+
+%showdetails(robot);
+%% Moving robot
+% set joint parameters
+jointParams = zeros(1,13);
+config = homeConfiguration(robot);
+
+for i = 1:13
+    config(i).JointPosition = jointParams(i);
+end
 
 
-%% stewart platform
-% Create 3 bodies for translation
-stewart_body_x = rigidBody("stewart_body_x");
-stewart_body_y = rigidBody("stewart_body_y");
-stewart_body_z = rigidBody("stewart_body_z");
+%% Display results
 
-% Create 3 bodies for rotation
-stewart_body_a = rigidBody("stewart_body_a");
-stewart_body_b = rigidBody("stewart_body_b");
-stewart_body_c = rigidBody("stewart_body_c");
+% show(assem);
+% gui = interactiveRigidBodyTree(assem,"MarkerScaleFactor",0.25);
 
 
-% create 3 revolute joints for rotation A, B, C
-stewart_rot_x = rigidBodyJoint("stewart_rot_x",'prismatic');
-stewart_rot_y = rigidBodyJoint("stewart_rot_y",'prismatic');
-stewart_rot_z = rigidBodyJoint("stewart_rot_z",'prismatic');
+% Show the robot in its initial configuration along with target
+figure;
+show(robot, config, 'PreservePlot', false, "Visuals","off","Frames","on");
+xlim([-1,1.5]);
+ylim([-1,1.5]);
+zlim([-0.5, 2.0]);
+hold on
 
-stewart_rot_a = rigidBodyJoint("stewart_rot_a",'revolute');
-stewart_rot_b = rigidBodyJoint("stewart_rot_b",'revolute');
-stewart_rot_c = rigidBodyJoint("stewart_rot_c",'revolute');
+jointValues = linspace(0,pi/2,50);
+r = rateControl(5);
 
-
-% Set transform
-setFixedTransform(stewart_rot_x,trvec2tform([0,0,0.2427/2]));
-setFixedTransform(stewart_rot_y,trvec2tform([0,0,0]));
-setFixedTransform(stewart_rot_z,trvec2tform([0,0,0]));
-setFixedTransform(stewart_rot_a,trvec2tform([0,0,0]));
-setFixedTransform(stewart_rot_b,trvec2tform([0,0,0]));
-setFixedTransform(stewart_rot_c,trvec2tform([0,0,0]));
-
-
-% define translation direction X, Y, Z
-% define rotation direction A, B, C
-stewart_rot_x.JointAxis = [1 0 0];
-stewart_rot_y.JointAxis = [0 1 0];
-stewart_rot_z.JointAxis = [0 0 1];
-stewart_rot_a.JointAxis = [1 0 0];
-stewart_rot_b.JointAxis = [0 1 0];
-stewart_rot_c.JointAxis = [0 0 1];
-
-% connect joints to refering bodies
-stewart_body_x.Joint = stewart_rot_x;
-stewart_body_y.Joint = stewart_rot_y;
-stewart_body_z.Joint = stewart_rot_z;
-stewart_body_a.Joint = stewart_rot_a;
-stewart_body_b.Joint = stewart_rot_b;
-stewart_body_c.Joint = stewart_rot_c;
-
-% Add the visual to the rigid body objects
-addVisual(stewart_body_c, "cylinder", [0.01, 0.2427]);
-
-addBody(lbr,stewart_body_x, lbr.Bodies{end}.Name);
-addBody(lbr,stewart_body_y, "stewart_body_x");
-addBody(lbr,stewart_body_z, "stewart_body_y");
-addBody(lbr,stewart_body_a, "stewart_body_z");
-addBody(lbr,stewart_body_b, "stewart_body_a");
-addBody(lbr,stewart_body_c, "stewart_body_b");
-
- 
-%show(lbr, "Visuals","off","Collisions","on");
-gui = interactiveRigidBodyTree(lbr,"MarkerScaleFactor",0.25);
+for n = 1: numel(jointValues)
+    jointParams(2) = jointValues(n);
+    config(2).JointPosition = jointParams(2);
+   
+    show(robot, config, 'PreservePlot', false, "Visuals","off","Frames","on");
+    waitfor(r);
+end 
+hold off;
+    
 
 

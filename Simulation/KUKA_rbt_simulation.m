@@ -1,4 +1,6 @@
-clear
+function [targetPose] = KUKA_rbt_simulation(targetPose, targetOri)
+
+%clear
 
 % lbr =  loadrobot('kukaIiwa14');
 % 
@@ -8,8 +10,8 @@ clear
 radius_B_left = 0.084; % [m]
 radius_B_right = 0.084; % [m]
 
-left_angle_shift_B = 6; %[deg]
-right_angle_shift_B = 19; %[deg]
+left_angle_shift_B = 19; %[deg]
+right_angle_shift_B = 6; %[deg]
 left_angle_shift_P = 20;
 right_angle_shift_P = 20;
 P_offset = 6.5; %[deg]
@@ -179,11 +181,11 @@ addBody(assem, stage_body,'extruder_f_1');
 
 
 %% Display results
-show(assem,'Collisions','off',"frames","off"); view(0,90)
+%show(assem,'Collisions','off',"frames","off"); view(0,90)
 %show(assem,'Collisions','on')
 gik1 = generalizedInverseKinematics("RigidBodyTree",assem,"ConstraintInputs",{"joint"});
 gik1.SolverParameters.MaxIterations = 20;
-gui = interactiveRigidBodyTree(assem,"MarkerScaleFactor",0.4, 'IKSolver',gik1,'Frames','off');
+%gui = interactiveRigidBodyTree(assem,"MarkerScaleFactor",0.4, 'IKSolver',gik1,'Frames','off');
 
 %% Constraints
 % * eul2tform([-delta_platform(3),0,0])
@@ -215,12 +217,12 @@ for i = 1:6
  strokeConstraint.Bounds(i,:) = [0, 0.03]; % max stroke 30mm
 end
 
-addConstraint(gui, poseTgt1);
-addConstraint(gui, poseTgt2);
-addConstraint(gui, poseTgt3);
-addConstraint(gui, poseTgt4);
-addConstraint(gui, poseTgt5);
-addConstraint(gui, strokeConstraint);
+% addConstraint(gui, poseTgt1);
+% addConstraint(gui, poseTgt2);
+% addConstraint(gui, poseTgt3);
+% addConstraint(gui, poseTgt4);
+% addConstraint(gui, poseTgt5);
+% addConstraint(gui, strokeConstraint);
 
 
 % Plot target
@@ -228,66 +230,114 @@ target_body = rigidBody("target_body");
 jntTarget = rigidBodyJoint("jntTarget","fixed");
 addVisual(target_body, "Sphere", 0.005);
 
-setFixedTransform(jntTarget,trvec2tform([0, 0, 0.3]));
+setFixedTransform(jntTarget,trvec2tform([0.005, 0, 0.24]));
 target_body.Joint = jntTarget;
 
 addBody(assem,target_body,"base");
 
 
 %% Trajectory planning
-gik1 = generalizedInverseKinematics("RigidBodyTree",assem,"ConstraintInputs",{"position","joint"});
+gik1 = generalizedInverseKinematics("RigidBodyTree",assem,"ConstraintInputs",{"position","orientation","pose","pose","pose","pose","pose","joint"});
 
 strokeConstraint = constraintJointBounds(assem);
 for i = 1:6
  strokeConstraint.Bounds(i,:) = [0, 0.03]; % max stroke 30mm
 end
 
-distanceFromTarget = constraintPositionTarget('target_body');
-distanceFromTarget.ReferenceBody = 'stage_body';
-distanceFromTarget.PositionTolerance = 0.000000001;
+positionFromTarget = constraintPositionTarget('stage_body');
+positionFromTarget.ReferenceBody = 'base';
+positionFromTarget.PositionTolerance = 0.000000001;
 
+oriFromTarget = constraintOrientationTarget('stage_body');
+oriFromTarget.ReferenceBody = 'base';
+oriFromTarget.OrientationTolerance = 0.000000001;
 
-numWaypoints = 5;
-intermediateDistance = 0.5;
-finalDistanceFromTarget = 0.05;
-q0 = homeConfiguration(assem);
-qWaypoints=repmat(q0, numWaypoints,1);
+% TargetPositions = [[0.005,0,0.24]; [-0.005,0,0.255]]; % [nx3]
+% TargetOris = [[1,0,0,0]; [1,0,0,0]]; % [nx4]
 
-distanceFromTargetValues =  linspace(intermediateDistance, finalDistanceFromTarget, numWaypoints-1);
-for k= 2:numWaypoints
-    distanceFromTarget.TargetPosition(3) = distanceFromTargetValues(k-1);
-    [qWaypoints(k,:),solutionInfo] = gik1(qWaypoints(k-1,:), distanceFromTarget, strokeConstraint);
-end
-                                          
-% Visualize generated trajectory
-% Interpolate between the waypoints to generate a smooth trajectory. Use pchip to avoid overshoots,
-% which might violate the joint limits of the robot.
-framerate = 15;
-r = rateControl(framerate);
-tFinal = 10;
-tWaypoints = [0,linspace(tFinal/2,tFinal,size(qWaypoints,1)-1)];
-numFrames = tFinal*framerate;
-qInterp = pchip(tWaypoints,qWaypoints',linspace(0,tFinal,numFrames))';
+TargetPositions = [targetPose]; % [nx3]
+TargetOris = [targetOri]; % [nx4]
 
-stagePosition = zeros(numFrames,3);
-for k = 1:numFrames
- stagePosition(k,:) = tform2trvec(getTransform(assem,qInterp(k,:), ...
- "stage_body"));
+[N, t] = size(TargetPositions);
+
+prevWaypoints=zeros(1,48); % last calculated way points
+for idx = 1:N
+    numWaypoints = 5;
+    
+    startingPosition = zeros(1,3);
+    startingOri = zeros(1,4);
+    q0 = homeConfiguration(assem);
+    if idx == 1
+        startingPosition = [0, 0, 0.23]; % when initializing
+        startingOri = [1,0,0,0]; % when initializing
+    else
+        startingPosition = TargetPositions(idx-1,:);
+        startingOri = TargetOris(idx-1,:);
+        q0 = prevWaypoints;
+    end 
+
+    FinalPosition = TargetPositions(idx,:);
+    FinalOri = TargetOris(idx,:);
+    
+    qWaypoints=repmat(q0, numWaypoints,1);   
+    position_values = repmat([0,0,0], numWaypoints-1,1);
+    ori_values = repmat([0,0,0,0], numWaypoints-1,1);
+    
+    for i = 1:3
+        position_values(:,i) = linspace(startingPosition(i), FinalPosition(i), numWaypoints-1)';
+        ori_values(:,i) =  linspace(startingOri(i), FinalOri(i), numWaypoints-1)';
+    end 
+    
+    
+    for k= 2:numWaypoints
+        positionFromTarget.TargetPosition = position_values(k-1,:);
+        oriFromTarget.TargetOrientation = ori_values(k-1, :);
+        [qWaypoints(k,:),solutionInfo] = gik1(qWaypoints(k-1,:), positionFromTarget, oriFromTarget, poseTgt1, poseTgt2,poseTgt3,poseTgt4,poseTgt5,strokeConstraint);
+    end
+                                              
+    % Visualize generated trajectory
+    % Interpolate between the waypoints to generate a smooth trajectory. Use pchip to avoid overshoots,
+    % which might violate the joint limits of the robot.
+    framerate = 2;
+    r = rateControl(framerate);
+    tFinal = 5;
+    tWaypoints = [0,linspace(tFinal/2,tFinal,size(qWaypoints,1)-1)];
+    numFrames = tFinal*framerate;
+    qInterp = pchip(tWaypoints,qWaypoints',linspace(0,tFinal,numFrames))';
+    
+    stagePosition = zeros(numFrames,3);
+    for k = 1:numFrames
+     stagePosition(k,:) = tform2trvec(getTransform(assem,qInterp(k,:), ...
+     "stage_body"));
+    end 
+    
+    % Show the robot in its initial configuration along with target
+    if idx==1
+        figure;
+        
+        show(assem, qWaypoints(1,:), 'PreservePlot', false, "Frames","off");
+        hold on
+        p = plot3(stagePosition(1,1), stagePosition(1,2), stagePosition(1,3));
+        
+        xlim([-0.3,0.3]);
+        ylim([-0.3,0.3]);
+        zlim([0,0.3]);
+    end 
+
+    % Animate the manipulator
+    hold on
+    for k = 1:size(qInterp,1)
+     show(assem, qInterp(k,:), 'PreservePlot', false,"Collisions","on","Frames","off");
+     p.XData(k) = stagePosition(k,1);
+     p.YData(k) = stagePosition(k,2);
+     p.ZData(k) = stagePosition(k,3);
+     %waitfor(r);
+    end
+    
+    prevWaypoints = qInterp(end,:);
 end 
 
-%Show the robot in its initial configuration along with target
-figure;
-show(assem, qWaypoints(1,:), 'PreservePlot', false, "Frames","off");
-hold on
-p = plot3(stagePosition(1,1), stagePosition(1,2), stagePosition(1,3));
-
-% Animate the manipulator
-hold on
-for k = 1:size(qInterp,1)
- show(assem, qInterp(k,:), 'PreservePlot', false,"Collisions","on","Frames","off");
- p.XData(k) = stagePosition(k,1);
- p.YData(k) = stagePosition(k,2);
- p.ZData(k) = stagePosition(k,3);
- waitfor(r);
-end
 hold off
+
+end
+    
