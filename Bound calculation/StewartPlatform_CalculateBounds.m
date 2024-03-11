@@ -1,6 +1,6 @@
 %% Calculate x,y,z bound
 
-angles = [0,0,0];
+angles = [0,0,0]; %[rad]
 
 buf_size = 1000;
 buf_z = zeros(3,buf_size);
@@ -28,8 +28,8 @@ joint_rotation_P_left = 10;  % [deg]
 joint_rotation_P_right = -10;  % [deg]
 joint_rotation_B_left = 0; %[deg]
 joint_rotation_B_right = 0; %[deg]
-left_angle_shift_B = 6; %[deg]
-right_angle_shift_B = 19; %[deg]
+left_angle_shift_B = 19; %[deg]
+right_angle_shift_B = 6; %[deg]
 left_angle_shift_P = 20;
 right_angle_shift_P = 20;
 
@@ -180,7 +180,7 @@ zlabel('z')
 %% Calculating tilting angles on each z bound
 % Considering only one angle tilt (yaw/pitch/roll)
 %% 1. yaw
-ddelta = 0.1;
+ddelta = deg2rad(0.1);
 buf_yaw = zeros(1,10000);
 for i = 1:z_size
     x = buf_z(:,i);

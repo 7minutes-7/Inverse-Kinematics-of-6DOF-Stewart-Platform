@@ -1,3 +1,6 @@
+%% Input
+% x [mm]
+% alpha, beta, gamma [rad]
 function [theta] = calc_motor_displacement(x,alpha,beta,gamma, stewart_params)
 %% Fixed // units: [rad]
 % delta: angle to each point of hexagon 
@@ -31,7 +34,7 @@ arguments
         stewart_params.joint_height = 17.5;
         stewart_params.platform_thickness = 7;
         stewart_params.link_radius = 3;
-        stewart_params.joint_thickness = 10.0;
+        stewart_params.joint_thickness = 10.5;
         stewart_params.base_joint_radius =19.723083/2;
         stewart_params.stage_joint_radius =19.723083/2;
         stewart_params.joint_rotation_P_left = 10;  % [deg]
@@ -90,7 +93,7 @@ radius_B = [radius_B_left, radius_B_right, radius_B_left, radius_B_right, radius
 
 %% calculate kinematics
 theta = zeros(6,1);
-R_PtoB = calc_RMatrix(pi*alpha/180.0, pi*beta/180.0, pi*gamma/180.0);
+R_PtoB = calc_RMatrix(alpha, beta, gamma);
 
 % Reshape input to column matrix
 x = reshape(x,[3,1]);

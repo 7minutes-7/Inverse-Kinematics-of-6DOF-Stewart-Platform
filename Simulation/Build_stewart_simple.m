@@ -3,12 +3,19 @@
 function [assem] = Build_stewart_simple()
     %% Robot parameters
     BASE_HEIGHT = 0.008;
-    LINK_HEIGHT = 0.2467;
+    
     STAGE_HEIGHT = 0.007;
-
+    
+    LINK_HEIGHT = 0.12727; 
+    KUKA_BASE_HEIGHT = 0.13045;
 
     %% stewart platform
     assem = rigidBodyTree("DataFormat","row");
+    
+    % Create kuka_attachement base frame 
+    kuka_attach_base = rigidBody("kuka_attach_base");
+    jntKukaAttachBase = rigidBodyJoint("jntKukaAttachBase","fixed");
+    kuka_attach_base.Joint = jntKukaAttachBase;
 
     % Create base frame 
     stewart_base = rigidBody("stewart_base");
@@ -39,6 +46,7 @@ function [assem] = Build_stewart_simple()
     
     
     % Set transform
+    setFixedTransform(jntBase,trvec2tform([0,0,KUKA_BASE_HEIGHT]));
     setFixedTransform(stewart_rot_x,trvec2tform([0,0,LINK_HEIGHT]));
     setFixedTransform(stewart_rot_y,trvec2tform([0,0,0]));
     setFixedTransform(stewart_rot_z,trvec2tform([0,0,0]));
@@ -52,9 +60,9 @@ function [assem] = Build_stewart_simple()
     stewart_rot_x.JointAxis = [1 0 0];
     stewart_rot_y.JointAxis = [0 1 0];
     stewart_rot_z.JointAxis = [0 0 1];
-    stewart_rot_a.JointAxis = [1 0 0];
+    stewart_rot_a.JointAxis = [0 0 1];
     stewart_rot_b.JointAxis = [0 1 0];
-    stewart_rot_c.JointAxis = [0 0 1];
+    stewart_rot_c.JointAxis = [1 0 0];
     
     % connect joints to refering bodies
     stewart_stage_x.Joint = stewart_rot_x;
@@ -67,7 +75,8 @@ function [assem] = Build_stewart_simple()
     % Add the visual to the rigid body objects
     addVisual(stewart_stage_c, "cylinder", [0.0665, STAGE_HEIGHT]);
     
-    addBody(assem,stewart_base, "base");
+    addBody(assem,kuka_attach_base, "base");
+    addBody(assem,stewart_base, "kuka_attach_base");
     addBody(assem,stewart_stage_x, "stewart_base");
     addBody(assem,stewart_stage_y, "stewart_stage_x");
     addBody(assem,stewart_stage_z, "stewart_stage_y");
